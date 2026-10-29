@@ -1,7 +1,5 @@
 import { Module } from "@nestjs/common";
-import { EventsController, RecipientsController } from "./events.controller";
+import { BoilerController, EventsController, RecipientsController } from "./events.controller";
 
-@Module({
-  controllers: [EventsController, RecipientsController],
-})
+@Module({ controllers: [BoilerController, EventsController, RecipientsController] })
 export class AppModule {}
