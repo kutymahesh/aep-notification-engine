@@ -13,7 +13,9 @@
     "@nestjs/core": "latest",
     "@nestjs/platform-express": "latest",
     "reflect-metadata": "latest",
-    "rxjs": "latest"
+    "rxjs": "latest",
+    "@nestjs/swagger": "latest",
+    "swagger-ui-express": "latest"
   },
   "devDependencies": {
     "@nestjs/cli": "latest",
