@@ -1,46 +1,34 @@
-# Notification Engine — Boiler MVP
+# Boiler Notification Engine MVP
 
-## User workflow
+Event creation modes: manual test events; telemetry threshold events; controller-originated fault/status events; scheduled maintenance events.
 
-1. **Create an incoming event:** choose a boiler event type, asset, title, and severity. Sample/manual events are explicitly marked; live telemetry ingestion is not implemented yet.
-2. **Manage recipients:** create a person with role, email/phone, available channels, and active state.
-3. **Configure routing policies:** prototype policies demonstrate severity-based routing to operator, maintenance, and manager contacts.
-4. **Future delivery:** resolve matching enabled policies, intersect policy channels with recipient-enabled channels, create a delivery job per destination, then track provider attempts and outcomes.
+## Default event catalog
+The API exposes GET /api/boiler/event-catalog. Defaults are examples, not universal safe settings.
+- steam_pressure.high — Critical; configured pressure limit exceeded.
+- steam_pressure.low — Warning; configured operating range under-run.
+- boiler_temperature.high — Warning; configured temperature limit exceeded.
+- water_level.low — Critical; verified level below approved threshold.
+- water_level.high — Warning; verified level above configured range.
+- burner.flame_failure — Critical; burner management controller signal.
+- burner.lockout — Critical; controller lockout state.
+- feedwater_pump.fault — Critical; validated pump/controller fault.
+- flue_gas_temperature.high — Warning; configured flue-gas limit exceeded.
+- sensor.fault — Warning; diagnostics/data quality identify invalid or stale readings.
+- gateway.offline — Warning; heartbeat timeout.
+- maintenance.due — Info; configured calendar/runtime interval reached.
 
-## Boiler event catalog (examples only)
+POST /api/events/from-telemetry accepts eventType, asset, numeric value, numeric threshold, optional unit and source. It creates an event only when a supported high/low condition crosses the supplied threshold. This first pass has no hysteresis, debounce, units conversion or stale-reading validation.
 
-| Event type | Example trigger source | Suggested demo severity |
-|---|---|---|
-| `temperature.high` | Validated temperature reading crosses site-configured threshold | Warning |
-| `pressure.high` | Validated pressure reading crosses approved threshold | Critical |
-| `water_level.low` | Validated level reading or controller status crosses approved threshold | Critical |
-| `burner.ignition_failure` | Burner controller reports ignition failure | Critical |
-| `pump.fault` | Pump/controller fault feedback is received | Critical |
-| `device.offline` | Expected telemetry/check-in has not arrived within configured timeout | Warning |
+## API
+- GET /api/events
+- POST /api/events
+- POST /api/events/from-telemetry
+- PATCH /api/events/:id/review
+- GET /api/boiler/event-catalog
+- GET /api/recipients
+- POST /api/recipients
+- PATCH /api/recipients/:id/toggle
 
-These are examples, not safe universal setpoints. Thresholds, debounce/hysteresis, units, sensor quality, and offline timeout must be configured for each installation. Do not infer ignition failure from temperature alone. Cloud notifications must never replace local burner management, low-water cutoffs, pressure relief, or other safety interlocks.
+database/schema.sql defines starter tables for tenants, assets, events, recipients, routing policies, delivery records and audit logs. The API still uses in-memory stores; PostgreSQL is not wired to the API yet. Authentication and server-side tenant scoping are required before multi-tenant use.
 
-## Starter API
-
-- `GET /api/events` — list sample and created events.
-- `POST /api/events` — create a manual test event; requires `title`, `eventType`, and `asset`; optional `severity` and `source`.
-- `PATCH /api/events/:id/review` — mark an event reviewed.
-- `GET /api/recipients` — list recipient contacts.
-- `POST /api/recipients` — create a recipient; requires `name` and at least one email or phone.
-- `PATCH /api/recipients/:id/toggle` — toggle active state.
-
-The API currently uses in-memory storage. Data resets when the API restarts. The current UI prototype uses browser state and does not call these endpoints yet. No actual email/SMS/push delivery is performed.
-
-## Recipient and policy design
-
-Recipient fields: id, name, role, email, phone, channels, active, createdAt.
-
-Routing should match event type/severity/asset/tenant and then choose active recipients whose available channels overlap the policy channels. Future delivery jobs should record destination, channel, status, attempt count, provider message ID, error, and timestamps. Delivery status must remain separate from event/alarm acknowledgement.
-
-## Next engineering steps
-
-1. Connect UI to the API and replace browser-only state.
-2. Add PostgreSQL schema/migrations and persistence.
-3. Add authentication and enforce tenant isolation server-side.
-4. Implement policy CRUD and deterministic event-to-recipient matching.
-5. Add queue/outbox, provider adapters, retries, idempotency, rate limits, suppression, and audit history.
+Safety: This app is for monitoring/notifications, not boiler control. Burner management, low-water cutoff, pressure relief and other protective functions must remain in appropriate local safety controls. Only use OEM/site-approved limits.
